@@ -18,6 +18,6 @@ export async function consumeSensitiveOperation(actorId: string, operation: stri
 
 async function consumeWindow(key: string, maximum: number, windowMs: number) {
   const now = new Date();
-  const record = await AuthAttempt.findOneAndUpdate({ key }, [{ $set: { count: { $cond: [{ $gt: ["$expiresAt", now] }, { $add: [{ $ifNull: ["$count", 0] }, 1] }, 1] }, expiresAt: { $cond: [{ $gt: ["$expiresAt", now] }, "$expiresAt", { $dateAdd: { startDate: now, unit: "millisecond", amount: windowMs } }] } } }], { upsert: true, new: true, setDefaultsOnInsert: true });
+  const record = await AuthAttempt.findOneAndUpdate({ key }, [{ $set: { count: { $cond: [{ $gt: ["$expiresAt", now] }, { $add: [{ $ifNull: ["$count", 0] }, 1] }, 1] }, expiresAt: { $cond: [{ $gt: ["$expiresAt", now] }, "$expiresAt", { $dateAdd: { startDate: now, unit: "millisecond", amount: windowMs } }] } } }], { upsert: true, new: true, setDefaultsOnInsert: true, updatePipeline: true });
   return record.count <= maximum;
 }
