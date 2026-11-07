@@ -16,11 +16,11 @@ const staffSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true, lowercase: true },
   passwordHash: { type: String, required: true },
   role: { type: String, enum: ["SUPER_ADMIN", "ADMIN", "GAME_MASTER"], default: "ADMIN" },
-  assignedGames: [{ type: mongoose.Schema.Types.ObjectId, ref: "Game" }],
+  active: { type: Boolean, default: true },
 }, { timestamps: true });
 
 try {
-  await mongoose.connect(MONGODB_URI);
+  await mongoose.connect(MONGODB_URI, { autoIndex: false, bufferCommands: false });
   const Staff = mongoose.models.StaffUser || mongoose.model("StaffUser", staffSchema);
   const email = ADMIN_EMAIL.trim().toLowerCase();
   if (await Staff.exists({ email })) throw new Error("A staff account with that email already exists.");

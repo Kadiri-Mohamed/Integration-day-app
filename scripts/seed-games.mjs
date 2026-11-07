@@ -7,10 +7,10 @@ if (!uri) {
 }
 
 const names = ["Code Names", "Toxic Waste", "Water Transfer", "Dancing Mannequins", "Sac Jump", "Spotting", "Flip 7", "Pull the Rope", "Spot the Bugs"];
-const gameSchema = new mongoose.Schema({ name: { type: String, required: true, unique: true }, description: String, category: { type: String, enum: ["COMPETITIVE", "BOARD"], default: "COMPETITIVE" }, active: { type: Boolean, default: true }, frozen: { type: Boolean, default: false }, masters: [{ type: mongoose.Schema.Types.ObjectId, ref: "StaffUser" }] }, { timestamps: true });
+const gameSchema = new mongoose.Schema({ name: { type: String, required: true, unique: true }, description: String, rules: { type: String, default: "" }, category: { type: String, enum: ["COMPETITIVE", "BOARD", "SOLO"], default: "COMPETITIVE" }, station: { type: String, default: "" }, supportedModes: { type: [String], default: ["TEAM"] }, teamsPerMatch: { type: Number, default: 2 }, awardsClues: { type: Boolean, default: true }, configuration: { type: mongoose.Schema.Types.Mixed, default: {} }, active: { type: Boolean, default: true }, frozen: { type: Boolean, default: false } }, { timestamps: true });
 
 try {
-  await mongoose.connect(uri);
+  await mongoose.connect(uri, { autoIndex: false, bufferCommands: false });
   const Game = mongoose.models.Game || mongoose.model("Game", gameSchema);
   for (const name of names) await Game.updateOne({ name }, { $setOnInsert: { name, category: "COMPETITIVE", active: true, frozen: false } }, { upsert: true });
   console.log(`Ensured ${names.length} competitive games exist.`);

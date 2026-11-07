@@ -16,7 +16,7 @@ The public home page is at `/`. Staff use `/staff/sign-in`.
 Create the first administrator using the one-time script:
 
 ```powershell
-$env:MONGODB_URI="mongodb+srv://..."
+$env:MONGODB_URI="mongodb+srv://<user>:<password>@<cluster>/<database>?retryWrites=true&w=majority"
 $env:ADMIN_NAME="Event Administrator"
 $env:ADMIN_EMAIL="admin@example.org"
 $env:ADMIN_PASSWORD="use-a-long-unique-password"

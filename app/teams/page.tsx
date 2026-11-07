@@ -1,0 +1,11 @@
+import Link from "next/link";
+import { connectDb } from "@/lib/db";
+import { Clue, EventSettings, Team } from "@/lib/models";
+
+export const dynamic = "force-dynamic";
+export default async function TeamDirectoryPage() {
+  await connectDb();
+  const [settings, teams, counts] = await Promise.all([EventSettings.findOne({ key: "event" }).select("eventName publicLeaderboardEnabled").lean(), Team.find({ status: "ACTIVE" }).select("_id name slug color").sort({ name: 1 }).lean(), Clue.aggregate([{ $match: { voidedAt: null } }, { $group: { _id: "$team", count: { $sum: 1 } } }])]);
+  const clueMap = new Map(counts.map((row: { _id: unknown; count: number }) => [String(row._id), row.count]));
+  return <main className="min-h-screen bg-[#f7f7f2] px-5 py-10 text-[#172118] sm:px-8"><div className="mx-auto max-w-6xl"><Link href="/" className="text-sm font-bold text-[#648042]">← Event home</Link><p className="mt-8 text-xs font-extrabold uppercase tracking-[.15em] text-[#7e9e55]">{settings?.eventName ?? "YouPulse"}</p><h1 className="mt-2 text-4xl font-black tracking-tight">Team directory</h1>{settings?.publicLeaderboardEnabled === false && <p className="mt-3 rounded-xl bg-white p-4 text-sm text-[#697564]">Public leaderboard details are currently disabled. Team profiles remain available.</p>}<div className="mt-7 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{teams.length ? teams.map((team: { _id: unknown; name: string; slug: string; color: string }) => <Link key={String(team._id)} href={`/teams/${encodeURIComponent(team.slug)}`} className="flex items-center gap-4 rounded-2xl border border-[#e7e9e1] bg-white p-5 transition hover:-translate-y-0.5 hover:shadow-md"><span className="grid size-14 place-items-center rounded-2xl text-xl font-black" style={{ backgroundColor: team.color }}>{team.name.charAt(0)}</span><span className="min-w-0 flex-1"><b className="block truncate text-lg">{team.name}</b><small className="text-[#7b8576]">{clueMap.get(String(team._id)) ?? 0} earned clues · public profile</small></span><span aria-hidden="true" className="text-xl text-[#8ea26e]">→</span></Link>) : <p className="col-span-full rounded-2xl bg-white p-8 text-sm text-[#7b8576]">Teams will appear here when they are ready.</p>}</div></div></main>;
+}
