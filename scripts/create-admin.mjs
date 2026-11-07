@@ -1,34 +1,28 @@
 import mongoose from "mongoose";
 import { hash } from "bcryptjs";
-
-const { MONGODB_URI, ADMIN_NAME, ADMIN_EMAIL, ADMIN_PASSWORD } = process.env;
-if (!MONGODB_URI || !ADMIN_NAME || !ADMIN_EMAIL || !ADMIN_PASSWORD) {
-  console.error("Set MONGODB_URI, ADMIN_NAME, ADMIN_EMAIL, and ADMIN_PASSWORD first.");
-  process.exit(1);
-}
-if (ADMIN_PASSWORD.length < 14) {
-  console.error("ADMIN_PASSWORD must be at least 14 characters.");
-  process.exit(1);
-}
-
-const staffSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  email: { type: String, required: true, unique: true, lowercase: true },
-  passwordHash: { type: String, required: true },
-  role: { type: String, enum: ["SUPER_ADMIN", "ADMIN", "GAME_MASTER"], default: "ADMIN" },
-  active: { type: Boolean, default: true },
-}, { timestamps: true });
+import { connectMongoose } from "../lib/mongoose-connection.mjs";
+import { staffUserSchema } from "../lib/staff-user-schema.mjs";
+import {
+  AdminBootstrapInputError,
+  initializeAdmin,
+  readAdminBootstrapConfig,
+} from "./admin-bootstrap.mjs";
 
 try {
-  await mongoose.connect(MONGODB_URI, { autoIndex: false, bufferCommands: false });
-  const Staff = mongoose.models.StaffUser || mongoose.model("StaffUser", staffSchema);
-  const email = ADMIN_EMAIL.trim().toLowerCase();
-  if (await Staff.exists({ email })) throw new Error("A staff account with that email already exists.");
-  await Staff.create({ name: ADMIN_NAME.trim(), email, passwordHash: await hash(ADMIN_PASSWORD, 12), role: "SUPER_ADMIN" });
-  console.log(`Created Super Admin account for ${email}.`);
+  const config = readAdminBootstrapConfig();
+  await connectMongoose(config.mongoUri);
+  const Staff = mongoose.models.StaffUser || mongoose.model("StaffUser", staffUserSchema);
+  const result = await initializeAdmin({ StaffUser: Staff, config, hashPassword: hash });
+  console.log(result.created
+    ? "Initial SUPER_ADMIN account created."
+    : "A staff account with the configured admin email already exists; no changes were made.");
 } catch (error) {
-  console.error(error instanceof Error ? error.message : "Could not create staff account.");
+  if (error instanceof AdminBootstrapInputError) {
+    console.error(error.message);
+  } else {
+    console.error("Admin bootstrap failed. Verify the target MongoDB and its access configuration; no credentials were logged.");
+  }
   process.exitCode = 1;
 } finally {
-  await mongoose.disconnect();
+  if (mongoose.connection.readyState !== 0) await mongoose.disconnect();
 }

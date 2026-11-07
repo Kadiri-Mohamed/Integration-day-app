@@ -13,17 +13,13 @@ The public home page is at `/`. Staff use `/staff/sign-in`.
 
 ## Staff account bootstrap
 
-Create the first administrator using the one-time script:
+Create the first administrator against a local or disposable database using the one-time script. Set the values in the ignored `.env.local` file; do not put credentials in shell history or commit the file.
 
 ```powershell
-$env:MONGODB_URI="mongodb+srv://<user>:<password>@<cluster>/<database>?retryWrites=true&w=majority"
-$env:ADMIN_NAME="Event Administrator"
-$env:ADMIN_EMAIL="admin@example.org"
-$env:ADMIN_PASSWORD="use-a-long-unique-password"
-node scripts/create-admin.mjs
+node --env-file=.env.local scripts/create-admin.mjs
 ```
 
-The script refuses to replace an existing email. Store credentials in a password manager and rotate the bootstrap password after use.
+The script hashes the password, creates an active `SUPER_ADMIN` with session version `0`, and refuses to change any existing account. It is not run by the application.
 
 Seed the nine required competitive games with `node scripts/seed-games.mjs` after setting `MONGODB_URI`.
 

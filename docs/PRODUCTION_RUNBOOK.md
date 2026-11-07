@@ -5,7 +5,8 @@
 - Use Node.js 20.9 or newer and the lockfile (`npm ci`).
 - Use MongoDB Atlas or another MongoDB replica set. Transactions are required for match completion, clue reservation, schedule publication, and several administrative writes. A standalone `mongod` is not sufficient.
 - Use a dedicated least-privilege database user, a production database, TLS, network access rules limited to the app's egress, and a generated Auth.js secret of at least 32 characters.
-- Set `MONGODB_URI`, `AUTH_SECRET`, and an HTTPS `AUTH_URL` in the deployment provider's encrypted server environment. Never set them as `NEXT_PUBLIC_*` values. `NEXT_PUBLIC_SITE_URL` may be set to the canonical public HTTPS origin for team QR codes.
+- In Vercel's **Production** environment, set `MONGODB_URI`, `AUTH_SECRET` (at least 32 generated characters), and the canonical HTTPS `AUTH_URL`. Never set these as `NEXT_PUBLIC_*` values. `NEXT_PUBLIC_SITE_URL` is optional and should contain only the canonical public HTTPS origin for team QR codes. `MONGODB_USERNAME` and `MONGODB_PASSWORD` are not read separately; database credentials belong in `MONGODB_URI`.
+- `ADMIN_NAME`, `ADMIN_EMAIL`, and `ADMIN_PASSWORD` are required only for the manual bootstrap command. Do not rely on the web app to use them; remove them from Vercel after bootstrapping. Give Preview/Development their own isolated database and secrets if those deployments are used.
 - `.env.example` contains placeholders only. Production requests fail closed when required environment values are missing or still look like placeholders. Keep `.env.local` out of Git.
 
 ## Prepare and deploy
@@ -16,9 +17,16 @@
 4. Take and verify a database backup before the first schema migration. Review the migration preflight output and resolve duplicate normalized identities or dangling references before proceeding.
 5. Run `npm run migrate:domain` as a one-off job against the intended database. It is designed to be idempotent, but it changes data and indexes; confirm the URI and backup before execution.
 6. Run `npm run check:domain`, then seed only missing default games with `node scripts/seed-games.mjs` if appropriate.
-7. Create the initial SUPER_ADMIN through the one-time `scripts/create-admin.mjs` process with `ADMIN_NAME`, `ADMIN_EMAIL`, and a unique `ADMIN_PASSWORD` supplied through a secret manager. Remove those bootstrap variables after the one-off job. Do not reuse an event participant or database password.
+7. Create the initial SUPER_ADMIN once against the Production database. From the repository root, with the Vercel CLI authenticated and this directory linked to the correct Vercel project, pull the Production variables into a local ignored file and run the CLI:
+
+   ```powershell
+   vercel env pull .env.production.local --environment production
+   node --env-file=.env.production.local scripts/create-admin.mjs
+   ```
+
+   Confirm the CLI prints `Initial SUPER_ADMIN account created.` without printing credentials. Running it again reports that the email already exists and makes no changes. Then remove the three bootstrap variables from Vercel and delete `.env.production.local` (`Remove-Item -LiteralPath .env.production.local`). Never commit or share the pulled file. Do not reuse an event participant or database password.
 8. Configure approved event rules, stations/capacities, clue inventory, and activities. Confirm the organizer's odd-team/waiting policy and team-size policy. Validate and publish a draft schedule before operating matches.
-9. Deploy the application, verify `/api/health`, sign in with the initial account, then create and test separate ADMIN and assigned GAME_MASTER accounts. Verify public pages and reports.
+9. Deploy the updated application (required for the authentication code changes), verify `/api/health`, then test sign-in at `/staff/sign-in` with the bootstrap credentials entered only in the browser. Confirm the SUPER_ADMIN can access a super-admin-only screen, then create and test separate ADMIN and assigned GAME_MASTER accounts. The database bootstrap itself does not require a deployment.
 10. Monitor provider logs, Atlas metrics, `/api/health`, and audit activity during the event. Health responses intentionally do not contain database hosts, exception text, or secrets.
 
 ## Backup and restore
